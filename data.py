@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import distance
 
+
 class data_generation:
     def __init__(
             self,
