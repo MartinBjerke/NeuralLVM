@@ -1,5 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.feature_selection import mutual_info_regression
 from model import *
 
@@ -10,16 +11,25 @@ def torch_circular_gp(num_sample, num_dim, smoothness):
     return vector2angle(angle2vector(z))
 
 
-def analysis(ensembler, model, trainer, z_test):
+def analysis(ensembler, model, trainer, z_test, do_inference=False):
     num_ensemble = ensembler.num_ensemble
     latent_dim = ensembler.latent_dim
-    y_, z_, mu, logvar = ensembler(trainer.data_test[trainer.neurons_train_ind])
+    _, y_, z_, mu, logvar = ensembler(trainer.data_test[trainer.neurons_train_ind])
+
+    if do_inference:
+        z_ = inference(ensembler,
+            trainer.data_test[trainer.neurons_train_ind],
+            trainer.data_test[trainer.neurons_test_ind],
+        )
+        _, y_, _, mu, logvar = ensembler(
+            trainer.data_test[trainer.neurons_train_ind], z=z_)
+
     z_ = z_.view(z_test.shape)
     logvar = logvar.view(z_test.shape)
 
     # plot ensemble_weights
     ensemble_weights = torch.nn.functional.softmax(
-        ensembler.ensemble_weights, dim=1).detach().cpu().numpy()
+        ensembler.ensemble_weights_test, dim=1).detach().cpu().numpy()
     plt.plot(ensemble_weights)
     plt.legend(np.arange(num_ensemble))
     plt.title('Ensemble Weights')
@@ -49,10 +59,8 @@ def analysis(ensembler, model, trainer, z_test):
     plt.figure(figsize=(12, 12))
     for i in range(latent_dim * num_ensemble):
         plt.subplot(num_ensemble, latent_dim, i + 1)
-        plt.plot(trainer.data_test[trainer.neurons_test_ind][
-                 i * 25, :200].detach().cpu().numpy())
-        plt.plot(y_[trainer.neurons_test_ind][
-                 i * 25, :200].detach().cpu().numpy())
+        plt.plot(trainer.data_test[trainer.neurons_test_ind][i * 25, :200].detach().cpu().numpy())
+        plt.plot(y_[i * 25, :200].detach().cpu().numpy())
         plt.legend(['true', 'predicted'])
         plt.title('Responses (test neurons)')
     plt.tight_layout()
@@ -60,8 +68,8 @@ def analysis(ensembler, model, trainer, z_test):
 
     # RF comparisons
     plt.figure(figsize=(18, 6))
-    true_rfs = model.receptive_fields.detach().cpu().numpy()
-    learned_rfs = ensembler.receptive_fields.detach().cpu().numpy().reshape(
+    true_rfs = model.receptive_fields[trainer.neurons_test_ind].detach().cpu().numpy()
+    learned_rfs = ensembler.receptive_fields_test.detach().cpu().numpy().reshape(
         true_rfs.shape[0], -1
     )
     for i in range(true_rfs.shape[1]):
