@@ -73,9 +73,13 @@ def compute_kld(q1_mu, q1_logvar, q0_mu, q0_logvar):
     return KL
 
 
-def compute_slowness_loss(mu):
-    """compute squared difference over 2nd dimension, i.e., time."""
-    return torch.mean((mu[:, 1:] - mu[:, :-1]) ** 2)
+def compute_slowness_loss(mu, penalty='l2'):
+    if penalty == 'l1':
+        """compute absolute difference over 2nd dimension, i.e., time."""
+        return torch.mean(torch.abs(mu[:, 1:] - mu[:, :-1]))
+    elif penalty == 'l2':
+        """compute squared difference over 2nd dimension, i.e., time."""
+        return torch.mean((mu[:, 1:] - mu[:, :-1]) ** 2)
 
 
 def compute_poisson_loss(y, y_):
